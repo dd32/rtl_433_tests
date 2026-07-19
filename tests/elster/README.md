@@ -47,13 +47,16 @@ manifest's own frame hex until the CRC validated), decoded by a new
 second device in the same file, `elster_power_meter2`.
 
 `01/`-`04/` are one real capture each of the four frame classes in the
-bundle (neighbour table, cleartext status, AES-encrypted, mesh/collector),
-all `ignore`d for the same `-Y minmax` reason as above. `codes_test.txt`'s
-type-2 section covers 29 of the 32 real captures (demodulated by rtl_433
-itself, not hand-derived) -- the other 3 didn't produce a CRC-valid decode
-here even though the reporter's own tool decoded 2 of them, likely a gap
-between rtl_433's plain FSK_PCM demod and their more elaborate
-self-centering analyzer on marginal signal.
+bundle (neighbour table, cleartext status, AES-encrypted, mesh/collector).
+Of these, only `02/` (cleartext status) actually needs `-Y minmax` to
+demodulate -- checked individually, not assumed from the batch -- so only
+`02/` carries a `demod` file; `01/`, `03/`, `04/`, `05/` decode fine under
+the default pulse detector. `codes_test.txt`'s type-2 section covers 29 of
+the 32 real captures (demodulated by rtl_433 itself, not hand-derived) --
+the other 3 didn't produce a CRC-valid decode here even though the
+reporter's own tool decoded 2 of them, likely a gap between rtl_433's
+plain FSK_PCM demod and their more elaborate self-centering analyzer on
+marginal signal.
 
 Only the neighbour table's 4-byte-per-record neighbour address is decoded
 (as `nbr_ids`); the remaining 16 bytes of each 20-byte record, and the
@@ -62,3 +65,20 @@ confidently-attributable meaning from 8 samples each and are left in
 `data_raw`. No cmd 0x23/0xce usage frame -- encrypted or clear -- has
 ever been observed on this deployment (~900 captures/~30 meters/4 days),
 so type-1's speculative `reading_kWh` remains just that.
+
+## Update: a second neighbour table message class, 0x7f (issue #3618)
+
+@ther3zz later reported a message byte of 0x7f producing a CRC-valid
+neighbour table that the `msg == 0x57` check didn't recognize. `05/` is
+a real capture of one, and `codes_test.txt` has its trimmed bitbuffer
+code alongside the rest of the type-2 section. Confirmed against both
+this and the existing `01/` capture: 0x7f records start one byte
+earlier than 0x57's (offset 29 vs. 30 from the frame start), everything
+else about the table layout is the same. The record start offset now
+depends on which of the two message classes is seen; the meaning of the
+header bytes that otherwise differ between the two classes is still
+unknown.
+
+Only one clean 0x7f capture has been posted so far; a second came in
+too weak for rtl_433's demod to lock onto (per the reporter, their own
+re-centering analyzer could still decode it) and wasn't attached.

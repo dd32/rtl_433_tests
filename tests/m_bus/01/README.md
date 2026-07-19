@@ -43,9 +43,6 @@ garbage fields like `min_ontime_h_0: "-1894580197.000 hours"`. That looks
 like a separate bug in `src/devices/m_bus.c`'s data-record field mapping,
 not investigated further here.
 
-No `.json` reference is included: this capture doesn't decode under the
-default pulse-detector settings that `bin/run_test.py` uses, so a
-reference file would just show as a permanent failure. The intent is to
-eventually make this decodable without special `-Y` flags (see the
-noise-chatter root cause in the classic-vs-minmax pulse detector
-investigation this fixture came out of) and add the `.json` at that point.
+The capture doesn't decode under the default pulse-detector settings that
+`bin/run_test.py` uses -- only under `-Y minmax` -- so a `demod` file
+supplies that flag and this directory runs as a normal regression test.
