@@ -27,6 +27,45 @@ Decoded by `olympia_9571` (protocol 386), preamble `aa aa 2d d4` followed by a
   battery just inserted
 - `keyfob_arm_home_only_19e755_868.5M_1200k.cu8`: Keyfob remote, ID 19e755,
   "arm home only" command
+- `pir_motion_d6f84d_868.42M_1000k.cu8`: PIR-Motion, motion,
+  868.42 MHz capture at 1000 kHz. Detector regression sample: a leading
+  ~84 us carrier blip precedes the FSK data, so a detector that only
+  evaluates the first OOK pulse misclassifies the transmission as OOK.
+- `pir_motion_d6f84d_868.465M_250k.cu8`: PIR-Motion, motion,
+  868.465 MHz capture at 250 kHz. Detector regression sample: a short
+  blip precedes each ~38 ms FSK burst, so the data only appears in
+  the second OOK pulse.
+- `pir_idle_d6f84d_868.465M_250k.cu8`: same PIR-Motion, idle, 868.465 MHz
+  at 250 kHz.
+- `door_closed_4ddf3b_868.465M_250k.cu8`: Contact, ID 4ddf3b, closed,
+  868.465 MHz capture at 250 kHz. Detector regression sample: the pulse
+  detector measures the leading blip at ~160 us (38-41 samples), wider
+  than in the PIR captures, so it guards the blip width limit. 12 of
+  the 14 bursts decode.
+- `keyfob_disarm_19e755_868.465M_250k.cu8`: Keyfob remote, ID 19e755,
+  "disarm" command, 868.465 MHz capture at 250 kHz. Same ~160 us blip
+  before each burst; all 19 bursts decode.
+
+## Leading blip handling
+
+Each transmission starts with a short carrier blip, then a gap of
+~0.7 ms, then the FSK burst. The pulse detector only runs FSK
+demodulation during the first OOK pulse, so without special handling
+the blip is the only pulse checked for FSK and the burst is
+misclassified as OOK.
+
+`pulse_detect.c` treats such a blip as a transmitter key-up transient:
+when the first OOK pulse is shorter than `PD_FSK_MAX_LEADIN_US`
+(200 us) and the gap after it is at least `PD_FSK_MIN_LEADIN_GAP_US`
+(200 us), FSK detection is restarted on the second pulse. FSK data
+from the blip itself is discarded and the OOK pulse data is left
+untouched. The FSK package then starts at the burst, so its pulse data
+is the same as for a capture without the blip.
+
+The minimum gap keeps dense OOK data, whose first pulse is also short
+(e.g. IDM meters), from being split into bogus FSK packages. There is
+no explicit maximum gap: after a pulse this short the package ends
+once the gap exceeds 10 ms (`PD_MIN_GAP_MS`), which bounds the window.
 
 Verify manually with:
 
@@ -34,3 +73,8 @@ Verify manually with:
     rtl_433 -r pir_idle_d6f84d_868.3M_1000k.cu8
     rtl_433 -r door_open_4ddf3b_868.4M_2048k.cu8
     rtl_433 -r keyfob_arm_home_only_19e755_868.5M_1200k.cu8
+    rtl_433 -r pir_motion_d6f84d_868.42M_1000k.cu8
+    rtl_433 -r pir_motion_d6f84d_868.465M_250k.cu8
+    rtl_433 -r pir_idle_d6f84d_868.465M_250k.cu8
+    rtl_433 -r door_closed_4ddf3b_868.465M_250k.cu8
+    rtl_433 -r keyfob_disarm_19e755_868.465M_250k.cu8
